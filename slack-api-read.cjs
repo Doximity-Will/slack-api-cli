@@ -61,8 +61,8 @@ function parseArgs(argv) {
 function printHelp() {
   console.log(`
 Usage:
-  npm run api:read -- --link SLACK_MESSAGE_LINK
-  npm run api:read -- --channel C123 --ts 1778748406.056539
+  slack-api read --link SLACK_MESSAGE_LINK
+  slack-api read --channel C123 --ts 1778748406.056539
 
 Options:
   --link URL          Slack message or thread reply permalink

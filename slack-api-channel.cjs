@@ -8,10 +8,10 @@ const {
   loadAuth,
   parseCommonArgs,
   parsePositiveInt,
-  permalinkFor,
   resolveChannel,
   slackApiCall,
   summarizeChannel,
+  summarizeMessage,
   summarizeUser,
 } = require("./slack-api-common.cjs");
 
@@ -38,6 +38,7 @@ function parseArgs(argv) {
     untilTs: "",
     includeText: process.env.SLACK_INCLUDE_TEXT === "1",
     resolveUsers: false,
+    includePages: false,
   });
 
   if (remaining[0] && !remaining[0].startsWith("-")) {
@@ -66,6 +67,7 @@ function parseArgs(argv) {
     else if (arg === "--include-text") args.includeText = true;
     else if (arg === "--redact-text") args.includeText = false;
     else if (arg === "--resolve-users") args.resolveUsers = true;
+    else if (arg === "--include-pages") args.includePages = true;
     else if (arg === "--help" || arg === "-h") {
       printHelp();
       process.exit(0);
@@ -111,6 +113,7 @@ Options:
   --include-text       Include message text
   --redact-text        Redact message text. Default
   --resolve-users      For members, also fetch users.info for returned user IDs
+  --include-pages      Include pagination metadata in search output
   --workspace URL      Slack workspace URL
   --auth-cache FILE    Auth cache path
   --refresh-auth       Refresh auth from browser profile first
@@ -128,35 +131,6 @@ function channelMatchesQuery(channel, query) {
     channel.purpose?.value,
     channel.user,
   ].some((value) => String(value || "").toLowerCase().includes(normalized));
-}
-
-function sanitizeMessage(args, message, includeText) {
-  return {
-    user: message.user || null,
-    username: message.username || null,
-    type: message.type || null,
-    subtype: message.subtype || null,
-    ts: message.ts || null,
-    threadTs: message.thread_ts || null,
-    replyCount: message.reply_count || 0,
-    replyUsersCount: message.reply_users_count || 0,
-    latestReply: message.latest_reply || null,
-    permalink: message.ts ? permalinkFor(args.workspace, message.channel || "", message.ts) : null,
-    text: includeText ? (message.text || "") : "[redacted; rerun with --include-text to save message text]",
-    reactionNames: Array.isArray(message.reactions)
-      ? message.reactions.map((reaction) => reaction.name).filter(Boolean)
-      : [],
-    files: Array.isArray(message.files)
-      ? message.files.map((file) => ({
-        id: file.id || null,
-        name: file.name || null,
-        title: file.title || null,
-        mimetype: file.mimetype || null,
-        filetype: file.filetype || null,
-        urlPrivateDownload: file.url_private_download || null,
-      }))
-      : [],
-  };
 }
 
 async function runSearch(args) {
@@ -177,7 +151,8 @@ async function runSearch(args) {
     types: args.types,
     resultCount: results.length,
     scannedCount: listed.items.length,
-    pages: listed.pages,
+    pageCount: listed.pages.length,
+    pages: args.includePages ? listed.pages : undefined,
     results,
   };
 }
@@ -238,7 +213,7 @@ async function runHistory(args) {
     responseMetadata: json.response_metadata || null,
     timeWindow: args.timeWindow,
     messageCount: filteredMessages.length,
-    messages: filteredMessages.map((message) => sanitizeMessage(args, message, args.includeText)),
+    messages: filteredMessages.map((message) => summarizeMessage(args, message, args.includeText)),
   };
 }
 

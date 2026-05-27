@@ -16,6 +16,10 @@ Setup asks for your Slack workspace URL, opens a browser profile, and waits whil
 
 Treat the browser profile and auth cache as sensitive session material.
 
+## Finding Your Workspace URL
+
+In the Slack desktop app, click the workspace name in the top-left menu. The workspace URL is shown in that menu and should look like `https://example.slack.com` or `https://example.enterprise.slack.com`.
+
 ## Alternate Setup Options
 
 Pass the workspace URL up front:
@@ -36,10 +40,10 @@ If Slack later rejects the cache, refresh it:
 slack-api auth --refresh --headed
 ```
 
-If Playwright reports that Chromium is missing, install the browser runtime and rerun setup:
+Setup checks for Playwright's Chromium browser before opening Slack. If the browser runtime is missing, run the command shown in the terminal. It will look similar to:
 
 ```sh
-npx playwright install chromium
+npx playwright@1.59.1 install chromium
 slack-api setup
 ```
 

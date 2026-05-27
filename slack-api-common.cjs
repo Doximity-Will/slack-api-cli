@@ -81,7 +81,6 @@ function loadPlaywright() {
   const candidates = [
     path.join(__dirname, "node_modules"),
     path.join(process.cwd(), "node_modules"),
-    path.join(os.homedir(), ".npm/_npx/e41f203b7505f1fb/node_modules"),
   ];
 
   for (const nodeModulesPath of candidates) {
@@ -94,6 +93,77 @@ function loadPlaywright() {
   }
 
   throw new Error("Playwright is not available. Run `npm install` in this directory, then retry.");
+}
+
+function loadPlaywrightVersion() {
+  try {
+    return require("playwright/package.json").version;
+  } catch {
+    // Fall through to explicit local install candidates.
+  }
+
+  const candidates = [
+    path.join(__dirname, "node_modules"),
+    path.join(process.cwd(), "node_modules"),
+  ];
+
+  for (const nodeModulesPath of candidates) {
+    try {
+      const requireFromCandidate = createRequire(path.join(nodeModulesPath, "playwright-loader.cjs"));
+      return requireFromCandidate("playwright/package.json").version;
+    } catch {
+      // Try the next known local install.
+    }
+  }
+
+  return "";
+}
+
+function playwrightInstallCommand() {
+  const version = loadPlaywrightVersion();
+  return version ? `npx playwright@${version} install chromium` : "npx playwright install chromium";
+}
+
+function playwrightBrowserInstallError(check = {}) {
+  const lines = [
+    "Playwright's Chromium browser is not installed for this CLI.",
+  ];
+
+  if (check.executablePath) {
+    lines.push("", "Expected browser executable:", `  ${check.executablePath}`);
+  }
+
+  lines.push(
+    "",
+    "Install the matching Playwright browser runtime:",
+    "",
+    `  ${check.installCommand || playwrightInstallCommand()}`,
+    "",
+    "Then rerun your slack-api command.",
+  );
+
+  return lines.join("\n");
+}
+
+function checkPlaywrightBrowser() {
+  const { chromium } = loadPlaywright();
+  const executablePath = typeof chromium.executablePath === "function"
+    ? chromium.executablePath()
+    : "";
+
+  return {
+    ok: !executablePath || fsSync.existsSync(executablePath),
+    executablePath,
+    installCommand: playwrightInstallCommand(),
+  };
+}
+
+function ensurePlaywrightBrowserInstalled() {
+  const check = checkPlaywrightBrowser();
+  if (!check.ok) {
+    throw new Error(playwrightBrowserInstallError(check));
+  }
+  return check;
 }
 
 function parseCommonArgs(argv, defaults = {}) {
@@ -228,6 +298,7 @@ async function isBrowserAuthValid(args, auth) {
 
 async function loadBrowserAuth(args) {
   const { chromium } = loadPlaywright();
+  ensurePlaywrightBrowserInstalled();
   await fs.mkdir(args.profile, { recursive: true });
 
   const context = await chromium.launchPersistentContext(args.profile, {
@@ -394,6 +465,9 @@ function noCachedAuthError(args) {
 
 function browserAuthFailure(error) {
   const message = String(error?.message || error);
+  if (/Executable doesn.t exist|Looks like Playwright was just installed or updated|Please run the following command to download new browsers/i.test(message)) {
+    return playwrightBrowserInstallError();
+  }
   if (/mach_port_rendezvous|Permission denied \(1100\)|Target page, context or browser has been closed|kill EPERM/i.test(message)) {
     return [
       "Could not refresh Slack browser auth because Chromium was blocked by the current sandbox.",
@@ -506,6 +580,10 @@ function exactPhraseQuery(query) {
   return `"${query.replaceAll('"', '\\"')}"`;
 }
 
+function looksLikeSlackSearchModifier(query) {
+  return /(?:^|\s)(?:from|in|to|has|is|before|after|on|during):\S+/i.test(String(query || ""));
+}
+
 function authorFilter(author) {
   const value = String(author || "").trim();
   if (!value || /^(all|any|none)$/i.test(value)) return "";
@@ -522,8 +600,10 @@ function dateFilter(name, value) {
   return `${name}:${normalized}`;
 }
 
-function slackSearchQuery(query, author, filters = []) {
-  return [exactPhraseQuery(query), authorFilter(author), ...filters].filter(Boolean).join(" ");
+function slackSearchQuery(query, author, filters = [], options = {}) {
+  const rawQuery = options.rawQuery || looksLikeSlackSearchModifier(query);
+  const baseQuery = rawQuery ? String(query || "").trim() : exactPhraseQuery(query);
+  return [baseQuery, authorFilter(author), ...filters].filter(Boolean).join(" ");
 }
 
 function normalizeEmojiName(value) {
@@ -628,6 +708,35 @@ function summarizeChannel(channel) {
     topic: channel.topic?.value || null,
     purpose: channel.purpose?.value || null,
     numMembers: channel.num_members ?? null,
+  };
+}
+
+function summarizeMessage(args, message, includeText) {
+  return {
+    user: message.user || null,
+    username: message.username || null,
+    type: message.type || null,
+    subtype: message.subtype || null,
+    ts: message.ts || null,
+    threadTs: message.thread_ts || null,
+    replyCount: message.reply_count || 0,
+    replyUsersCount: message.reply_users_count || 0,
+    latestReply: message.latest_reply || null,
+    permalink: message.ts ? permalinkFor(args.workspace, message.channel || "", message.ts) : null,
+    text: includeText ? (message.text || "") : "[redacted; rerun with --include-text to save message text]",
+    reactionNames: Array.isArray(message.reactions)
+      ? message.reactions.map((reaction) => reaction.name).filter(Boolean)
+      : [],
+    files: Array.isArray(message.files)
+      ? message.files.map((file) => ({
+        id: file.id || null,
+        name: file.name || null,
+        title: file.title || null,
+        mimetype: file.mimetype || null,
+        filetype: file.filetype || null,
+        urlPrivateDownload: file.url_private_download || null,
+      }))
+      : [],
   };
 }
 
@@ -867,8 +976,10 @@ module.exports = {
   authorFilter,
   buildTimeWindow,
   dateFilter,
+  ensurePlaywrightBrowserInstalled,
   fetchSlackPrivateUrl,
   isTimestampInWindow,
+  looksLikeSlackSearchModifier,
   loadAuth,
   loadBrowserAuth,
   loadCachedAuth,
@@ -894,6 +1005,7 @@ module.exports = {
   slackApiCall,
   slackSearchQuery,
   summarizeChannel,
+  summarizeMessage,
   summarizeUser,
   workspaceOrigin,
 };

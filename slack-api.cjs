@@ -6,32 +6,37 @@ const { spawnSync } = require("node:child_process");
 const COMMANDS = {
   setup: {
     script: "slack-api-setup.cjs",
-    summary: "Configure your Slack workspace and browser-session auth cache.",
+    summary: "Configure workspace and browser auth.",
     aliases: ["init", "configure"],
   },
   auth: {
     script: "slack-api-auth.cjs",
-    summary: "Validate the browser session credentials against Slack auth.test.",
+    summary: "Validate or refresh cached browser credentials.",
   },
   me: {
     script: "slack-api-me.cjs",
-    summary: "Print the current Slack user's profile and agent-friendly search filters.",
+    summary: "Show the signed-in Slack user.",
     aliases: ["whoami", "self"],
   },
   search: {
     script: "slack-api-search.cjs",
-    summary: "Search Slack messages via Slack API. Supports local --since filtering.",
+    summary: "Search Slack messages.",
     aliases: ["query"],
   },
   read: {
     script: "slack-api-read.cjs",
-    summary: "Read a Slack message or thread from a permalink or channel/timestamp.",
+    summary: "Read a Slack message or thread.",
     aliases: ["message", "thread"],
   },
   channel: {
     script: "slack-api-channel.cjs",
-    summary: "Search channels, read channel history, inspect channel info, and list members.",
+    summary: "Search channels, inspect info, read history, and list members.",
     aliases: ["channels"],
+  },
+  dm: {
+    script: "slack-api-dm.cjs",
+    summary: "Read 1:1 DM history with a user.",
+    aliases: ["im", "direct-message"],
   },
   user: {
     script: "slack-api-user.cjs",
@@ -45,12 +50,12 @@ const COMMANDS = {
   },
   send: {
     script: "slack-api-send.cjs",
-    summary: "Dry-run or post a top-level Slack message, optionally with file attachments.",
+    summary: "Dry-run or post a top-level Slack message.",
     aliases: ["post"],
   },
   draft: {
     script: "slack-api-draft.cjs",
-    summary: "Dry-run, create, inspect, or delete Slack draft messages.",
+    summary: "Dry-run, create, inspect, or delete Slack drafts.",
     aliases: ["drafts"],
   },
   emoji: {
@@ -60,12 +65,12 @@ const COMMANDS = {
   },
   reply: {
     script: "slack-api-reply.cjs",
-    summary: "Dry-run or post a Slack thread reply, optionally with file attachments.",
+    summary: "Dry-run or post a Slack thread reply.",
     aliases: ["comment"],
   },
   react: {
     script: "slack-api-react.cjs",
-    summary: "Dry-run, add, or remove an emoji reaction. Requires --add or --remove to mutate.",
+    summary: "Dry-run, add, or remove an emoji reaction.",
     aliases: ["reaction"],
   },
 };
@@ -84,7 +89,7 @@ function cliName() {
 }
 
 function printHelp() {
-  printAgentHelp();
+  printShortHelp();
 }
 
 function printShortHelp() {
@@ -94,49 +99,39 @@ Slack API CLI
 
 Usage:
   ${cli} <command> [options]
-  npm run api -- <command> [options]
 
 Commands:
-  setup     ${COMMANDS.setup.summary}
-  auth      ${COMMANDS.auth.summary}
-  me        ${COMMANDS.me.summary}
-  search    ${COMMANDS.search.summary}
-  read      ${COMMANDS.read.summary}
-  channel   ${COMMANDS.channel.summary}
-  user      ${COMMANDS.user.summary}
-  file      ${COMMANDS.file.summary}
-  send      ${COMMANDS.send.summary}
-  draft     ${COMMANDS.draft.summary}
-  emoji     ${COMMANDS.emoji.summary}
-  reply     ${COMMANDS.reply.summary}
-  react     ${COMMANDS.react.summary}
+  setup      ${COMMANDS.setup.summary}
+  auth       ${COMMANDS.auth.summary}
+  whoami     ${COMMANDS.me.summary} Alias: me
+  search     ${COMMANDS.search.summary}
+  read       ${COMMANDS.read.summary} Alias: thread
+  channel    ${COMMANDS.channel.summary}
+  dm         ${COMMANDS.dm.summary} Alias: im
+  user       ${COMMANDS.user.summary}
+  file       ${COMMANDS.file.summary}
+  send       ${COMMANDS.send.summary}
+  draft      ${COMMANDS.draft.summary}
+  emoji      ${COMMANDS.emoji.summary}
+  reply      ${COMMANDS.reply.summary}
+  react      ${COMMANDS.react.summary}
 
 Help:
   ${cli} --help
   ${cli} help <command>
   ${cli} <command> --help
+  ${cli} agent-help
 
 Examples:
   ${cli} setup
-  ${cli} auth
-  ${cli} me
-  ${cli} search --query release --count 50 --since 30s
+  ${cli} whoami
+  ${cli} search --query "customer escalation" --since 5m
+  ${cli} dm history --user "Alice Smith" --include-text
   ${cli} read --link 'https://example.slack.com/archives/C0123456789/p1778784641394639'
-  ${cli} channel history --channel '#general' --since 30m --limit 50
-  ${cli} user profile --email someone@example.com
-  ${cli} file search --query 'budget type:pdfs'
-  ${cli} file upload --channel '#general' --file /tmp/report.pdf --initial-comment 'Report' --send
-  ${cli} send --channel '#general' --message 'Thanks' --send
-  ${cli} send --channel '#general' --message 'Attached' --attach /tmp/report.pdf --send
-  ${cli} draft --channel '#general' --message 'Draft text' --create
-  ${cli} draft delete --channel '#general' --match-text 'Draft text' --delete
-  ${cli} emoji list --query party --limit 20
-  ${cli} react --link 'https://example.slack.com/archives/C0123456789/p1778784641394639' --emoji eyes --add
-  ${cli} react --link 'https://example.slack.com/archives/C0123456789/p1778784641394639' --emoji eyes --remove
-  ${cli} reply --link 'https://example.slack.com/archives/C0123456789/p1778784641394639' --message 'Thanks' --send
-  ${cli} reply --link 'https://example.slack.com/archives/C0123456789/p1778784641394639' --message 'Attached' --attach /tmp/report.pdf --send
+  ${cli} send --channel '#general' --message 'Thanks'
 
-Run --help for the operational context agents need before using this CLI.
+Run '${cli} help <command>' for command-specific options and examples.
+Run '${cli} agent-help' for agent-oriented operational context.
 `);
 }
 
@@ -154,7 +149,8 @@ NPM equivalent:
 Credential model:
   - This CLI does not use an official Slack app token or OAuth token.
   - Run ${cli} setup once to save your Slack workspace URL and extract Slack's browser API token plus cookies from a signed-in browser session.
-  - Normal me/search/read/channel/user/file/send/draft create/draft info/emoji/react/reply commands use the private auth cache and do not launch Chromium.
+  - Normal whoami/search/read/channel/dm/user/file/send/draft create/draft info/emoji/react/reply commands use the private auth cache and do not launch Chromium.
+  - If the user asks for conversation history with a person, prefer ${cli} dm history --user "Full Name" --include-text.
   - draft delete intentionally launches Chromium to drive Slack's Drafts & sent UI because direct drafts.delete returns team_is_restricted.
   - It does not print token or cookie values.
   - Treat the configured browser profile directory and auth cache file as sensitive session material.
@@ -174,11 +170,12 @@ Commands:
       ${cli} auth
       ${cli} auth --refresh
 
-  me
+  whoami
     Print the current Slack user's profile plus agent-friendly identifiers.
+    Alias: me
     Use search.fromUserId for "me" filters, e.g. from:<@U123456>.
     Examples:
-      ${cli} me
+      ${cli} whoami
       ${cli} me --include-raw
 
   search
@@ -188,8 +185,9 @@ Commands:
     Slack's --after/--before date filters are day-level and effectively exclusive.
     For exact recent windows, use local timestamp filtering: --since 30s, --since 5m, --since 12h, or --since-ts / --until-ts.
     Examples:
-      ${cli} search --query release --count 50 --since 30s
-      ${cli} search --query incident --any-author --count 50 --since 5m --include-snippets
+      ${cli} search --query "customer escalation" --count 50 --since 30s
+      ${cli} search --query "incident review" --any-author --count 50 --since 5m --include-snippets
+      ${cli} search --raw-query 'from:<@U123456> "customer escalation"' --include-snippets
       ${cli} search --query deploy --count 50 --after 2026-05-13 --before 2026-05-15
 
   read
@@ -208,10 +206,19 @@ Commands:
       ${cli} channel history --channel '#general' --since 30m --limit 50 --include-text
       ${cli} channel members --channel '#general' --limit 100
 
+  dm
+    Resolve a user and read your 1:1 DM history with them.
+    Uses conversations.open to resolve the DM channel, then conversations.history. It never sends a message.
+    Examples:
+      ${cli} dm history --user "Alice Smith" --include-text
+      ${cli} dm history --email someone@example.com --since 7d --limit 50
+      ${cli} dm info --user U123456
+
   user
     Search users and read profiles.
     Examples:
       ${cli} user search --query alice --limit 10
+      ${cli} user profile --name "Alice Smith"
       ${cli} user profile --email someone@example.com
       ${cli} user profile --user U123456
 
@@ -290,7 +297,7 @@ Operational notes:
   - Browser refresh may require elevated execution in Codex on macOS due Chromium sandbox/session restrictions.
   - Slack API network calls may also need elevated execution in Codex. Approve the broad slack-api prefix so all subcommands work.
   - If cached auth is missing or rejected, run ${cli} setup or ${cli} auth --refresh --headed once outside the sandbox, then retry.
-  - Existing lower-level scripts still work: npm run api:auth, api:me, api:search, api:read, api:channel, api:user, api:file, api:send, api:draft, api:emoji, api:reply, api:react.
+  - Existing lower-level scripts still work: npm run api:auth, api:me, api:search, api:read, api:channel, api:dm, api:user, api:file, api:send, api:draft, api:emoji, api:reply, api:react.
 `);
 }
 

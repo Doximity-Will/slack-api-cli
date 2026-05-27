@@ -62,8 +62,8 @@ function parseArgs(argv) {
 function printHelp() {
   console.log(`
 Usage:
-  npm run api:react -- --link SLACK_MESSAGE_LINK --emoji eyes --add
-  npm run api:react -- --link SLACK_MESSAGE_LINK --emoji eyes --remove
+  slack-api react --link SLACK_MESSAGE_LINK --emoji eyes --add
+  slack-api react --link SLACK_MESSAGE_LINK --emoji eyes --remove
 
 Options:
   --link URL          Slack message or thread reply permalink

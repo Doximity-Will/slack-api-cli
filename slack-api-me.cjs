@@ -28,6 +28,7 @@ function parseArgs(argv) {
 function printHelp() {
   console.log(`
 Usage:
+  slack-api whoami
   slack-api me
 
 Options:

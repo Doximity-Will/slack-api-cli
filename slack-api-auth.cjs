@@ -5,7 +5,8 @@ const { loadAuth, parseCommonArgs, slackApiCall } = require("./slack-api-common.
 function printHelp() {
   console.log(`
 Usage:
-  npm run api:auth
+  slack-api auth
+  slack-api auth --refresh --headed
 
 Options:
   --workspace URL    Slack workspace URL

@@ -25,6 +25,7 @@ function parseArgs(argv) {
     email: "",
     includeDeleted: false,
     includeBots: false,
+    includePages: false,
     limit: 25,
     maxPages: 20,
   });
@@ -44,9 +45,15 @@ function parseArgs(argv) {
 
     if (arg === "--query" || arg === "-q") args.query = next();
     else if (arg === "--user" || arg === "-u") args.user = next();
+    else if (arg === "--name") {
+      const value = next();
+      if (args.command === "search") args.query = value;
+      else args.user = value;
+    }
     else if (arg === "--email") args.email = next();
     else if (arg === "--include-deleted") args.includeDeleted = true;
     else if (arg === "--include-bots") args.includeBots = true;
+    else if (arg === "--include-pages") args.includePages = true;
     else if (arg === "--limit") args.limit = parsePositiveInt(next(), "--limit");
     else if (arg === "--max-pages") args.maxPages = parsePositiveInt(next(), "--max-pages");
     else if (arg === "--help" || arg === "-h") {
@@ -69,6 +76,7 @@ function printHelp() {
 Usage:
   slack-api user search --query alice
   slack-api user profile --user U123456
+  slack-api user profile --name "Alice Smith"
   slack-api user profile --email someone@example.com
 
 Commands:
@@ -78,9 +86,11 @@ Commands:
 Options:
   --query TEXT          Search query
   --user ID|NAME|EMAIL  User ID, name, display name, or email for profile lookup
+  --name NAME           Alias for --user
   --email EMAIL         Exact email lookup for profile
   --include-deleted     Include deactivated users in search/resolve
   --include-bots        Include bot users in search/resolve
+  --include-pages       Include pagination metadata in search output
   --limit N             Result limit. Default: 25
   --max-pages N         Max users.list pages. Default: 20
   --workspace URL       Slack workspace URL
@@ -122,7 +132,8 @@ async function runSearch(args) {
     query: args.query || null,
     resultCount: results.length,
     scannedCount: listed.items.length,
-    pages: listed.pages,
+    pageCount: listed.pages.length,
+    pages: args.includePages ? listed.pages : undefined,
     results,
   };
 }

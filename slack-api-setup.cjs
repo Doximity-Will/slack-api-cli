@@ -7,6 +7,7 @@ const {
   DEFAULT_AUTH_CACHE,
   DEFAULT_CONFIG_PATH,
   DEFAULT_PROFILE,
+  ensurePlaywrightBrowserInstalled,
   loadAuth,
   loadConfig,
   normalizeWorkspaceUrl,
@@ -24,6 +25,7 @@ function parseArgs(argv) {
     timeoutMs: 300_000,
     headless: false,
     skipAuth: false,
+    noInput: false,
     json: false,
   };
 
@@ -44,6 +46,7 @@ function parseArgs(argv) {
     else if (arg === "--headless") args.headless = true;
     else if (arg === "--headed") args.headless = false;
     else if (arg === "--skip-auth") args.skipAuth = true;
+    else if (arg === "--no-input") args.noInput = true;
     else if (arg === "--json") args.json = true;
     else if (arg === "--help" || arg === "-h") {
       printHelp();
@@ -76,7 +79,12 @@ Options:
   --headed           Show the browser window for sign-in. Default
   --headless         Run without showing the browser window
   --skip-auth        Save config without launching the browser
+  --no-input         Do not prompt. Requires --workspace when config is missing.
   --json             Print machine-readable setup result
+
+Workspace URL:
+  In the Slack desktop app, click the workspace name in the top-left menu.
+  The URL should look like https://example.slack.com or https://example.enterprise.slack.com.
 `);
 }
 
@@ -87,7 +95,7 @@ async function promptForValue(rl, label, defaultValue) {
 }
 
 async function readInteractiveConfig(args, existing) {
-  if (!process.stdin.isTTY && !args.workspace) {
+  if ((args.noInput || !process.stdin.isTTY) && !args.workspace) {
     throw new Error("No workspace URL was provided. Run `slack-api setup --workspace https://your-workspace.slack.com`.");
   }
 
@@ -106,6 +114,10 @@ async function readInteractiveConfig(args, existing) {
   });
 
   try {
+    if (!args.json) {
+      console.log("Tip: In the Slack desktop app, click the workspace name in the top-left menu to find the workspace URL.");
+      console.log("It should look like https://example.slack.com or https://example.enterprise.slack.com.");
+    }
     const workspace = normalizeWorkspaceUrl(await promptForValue(
       rl,
       "Slack workspace URL",
@@ -145,6 +157,8 @@ async function main() {
   };
 
   if (!args.skipAuth) {
+    ensurePlaywrightBrowserInstalled();
+
     if (!args.json) {
       console.log("Opening Slack in a browser profile. Complete sign-in if prompted.");
       console.log("The browser will close automatically after Slack is fully signed in and auth.test succeeds.");
@@ -181,7 +195,7 @@ async function main() {
     console.log(`Browser profile: ${config.profile}`);
     console.log(`Auth cache: ${config.authCache}`);
     if (result.user) console.log(`Authenticated as: ${result.user}`);
-    console.log("Try: slack-api me");
+    console.log("Try: slack-api whoami");
   }
 }
 

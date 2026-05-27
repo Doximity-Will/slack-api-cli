@@ -82,7 +82,7 @@ function parseArgs(argv) {
 function printHelp() {
   console.log(`
 Usage:
-  npm run api:reply -- --link SLACK_MESSAGE_LINK --message "Thanks" --send
+  slack-api reply --link SLACK_MESSAGE_LINK --message "Thanks" --send
 
 Options:
   --link URL                 Slack message or thread reply permalink

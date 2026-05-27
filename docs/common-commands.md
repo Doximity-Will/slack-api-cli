@@ -11,7 +11,13 @@ slack-api search --query "customer escalation" --since 5m
 Search all visible authors and include message text:
 
 ```sh
-slack-api search --query incident --any-author --count 20 --include-snippets
+slack-api search --query "incident review" --any-author --count 20 --include-snippets
+```
+
+Pass Slack-native search modifiers through directly:
+
+```sh
+slack-api search --raw-query 'from:<@U123456> "customer escalation"' --include-snippets
 ```
 
 ## Read
@@ -21,6 +27,21 @@ Read a message or thread by permalink:
 ```sh
 slack-api read --link 'https://example.slack.com/archives/C0123456789/p1778784641394639'
 slack-api thread --link 'https://example.slack.com/archives/C0123456789/p1778784641394639' --include-text
+```
+
+## Direct Messages
+
+Read your 1:1 DM history with a user:
+
+```sh
+slack-api dm history --user "Alice Smith" --include-text
+slack-api dm history --email alice@example.com --since 7d --limit 50
+```
+
+Resolve the DM channel without reading messages:
+
+```sh
+slack-api dm info --user U123456
 ```
 
 ## Channels
@@ -39,6 +60,7 @@ Search users and read profiles:
 
 ```sh
 slack-api user search --query alice --limit 10
+slack-api user profile --name "Alice Smith"
 slack-api user profile --email someone@example.com
 ```
 

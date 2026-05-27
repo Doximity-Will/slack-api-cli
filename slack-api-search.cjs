@@ -7,6 +7,7 @@ const {
   buildTimeWindow,
   dateFilter,
   isTimestampInWindow,
+  looksLikeSlackSearchModifier,
   loadAuth,
   parseCommonArgs,
   slackApiCall,
@@ -28,6 +29,7 @@ function parseArgs(argv) {
     count: 20,
     out: "",
     includeSnippets: process.env.SLACK_INCLUDE_SNIPPETS === "1",
+    rawQuery: false,
   });
 
   for (let index = 0; index < remaining.length; index += 1) {
@@ -39,6 +41,10 @@ function parseArgs(argv) {
     };
 
     if (arg === "--query") args.query = next();
+    else if (arg === "--raw-query") {
+      args.query = next();
+      args.rawQuery = true;
+    }
     else if (arg === "--from") args.author = next();
     else if (arg === "--any-author") args.author = "";
     else if (arg === "--after") args.after = next();
@@ -73,10 +79,12 @@ function parseArgs(argv) {
 function printHelp() {
   console.log(`
 Usage:
-  npm run api:search -- --query release
+  slack-api search --query "customer escalation"
+  slack-api search --raw-query 'from:<@U123456> "customer escalation"' --include-snippets
 
 Options:
   --query TEXT          Search phrase. Required
+  --raw-query TEXT      Slack search syntax. Does not exact-quote or add default from:me
   --from VALUE          Slack author filter. Default: ${DEFAULT_AUTHOR_FILTER}
   --any-author          Disable author filtering
   --after YYYY-MM-DD    Add Slack search date modifier after:YYYY-MM-DD
@@ -141,7 +149,9 @@ async function main() {
     dateFilter("after", args.after),
     dateFilter("before", args.before),
   ].filter(Boolean);
-  const query = slackSearchQuery(args.query, args.author, filters);
+  const queryMode = (args.rawQuery || looksLikeSlackSearchModifier(args.query)) ? "raw" : "exact";
+  const author = queryMode === "raw" ? "" : args.author;
+  const query = slackSearchQuery(args.query, author, filters, { rawQuery: queryMode === "raw" });
 
   args.auth = await loadAuth(args);
   const { response, json, auth } = await slackApiCall(args, "search.messages", {
@@ -160,8 +170,15 @@ async function main() {
     generatedAt: new Date().toISOString(),
     workspace: args.workspace,
     query: args.query,
-    authorFilter: authorFilter(args.author) || null,
+    queryMode,
+    authorFilter: authorFilter(author) || null,
     slackQuery: query,
+    warnings: (!args.rawQuery && queryMode === "raw")
+      ? [{
+        code: "slack_search_syntax_detected",
+        message: "Detected Slack search modifiers in --query and passed them through without exact-quoting. Use --raw-query to make this explicit.",
+      }]
+      : undefined,
     includeSnippets: args.includeSnippets,
     authSource: auth.source,
     authHint: json.authHint,
