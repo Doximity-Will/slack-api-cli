@@ -1,0 +1,55 @@
+{
+  "name": "slack-api-cli",
+  "version": "0.1.0",
+  "description": "A local Slack CLI that reuses a signed-in browser session for search, read, and dry-run-safe message workflows.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ronnie3786/slack-api-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ronnie3786/slack-api-cli/issues"
+  },
+  "homepage": "https://github.com/ronnie3786/slack-api-cli#readme",
+  "type": "commonjs",
+  "bin": {
+    "slack-api": "slack-api.cjs"
+  },
+  "scripts": {
+    "api": "node slack-api.cjs",
+    "api:help": "node slack-api.cjs --help",
+    "api:setup": "node slack-api-setup.cjs",
+    "api:auth": "node slack-api-auth.cjs",
+    "api:me": "node slack-api-me.cjs",
+    "api:search": "node slack-api-search.cjs",
+    "api:read": "node slack-api-read.cjs",
+    "api:channel": "node slack-api-channel.cjs",
+    "api:user": "node slack-api-user.cjs",
+    "api:file": "node slack-api-file.cjs",
+    "api:send": "node slack-api-send.cjs",
+    "api:draft": "node slack-api-draft.cjs",
+    "api:emoji": "node slack-api-emoji.cjs",
+    "api:reply": "node slack-api-reply.cjs",
+    "api:react": "node slack-api-react.cjs",
+    "demo:preview": "remotion studio demo/src/index.ts",
+    "demo:render": "remotion render demo/src/index.ts SlackApiCliDemo demo/slack-api-cli-demo.mp4 --codec=h264"
+  },
+  "dependencies": {
+    "playwright": "^1.59.1"
+  },
+  "devDependencies": {
+    "@remotion/cli": "^4.0.344",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "remotion": "^4.0.344"
+  },
+  "files": [
+    "slack-api*.cjs",
+    "LICENSE",
+    "README.md",
+    "docs/**/*.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}

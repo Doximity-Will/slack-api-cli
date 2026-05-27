@@ -1,0 +1,16 @@
+.slack-browser-profile/
+.slack-api-auth.json
+results/
+.local/
+node_modules/
+npm-debug.log*
+*.tgz
+.DS_Store
+.env
+.env.*
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
