@@ -27,7 +27,7 @@ function parseArgs(argv) {
     attachmentTitles: [],
     attachmentAltTexts: [],
     attachmentSnippetTypes: [],
-    send: false,
+    send: true,
     unfurlLinks: true,
     unfurlMedia: true,
   });
@@ -49,6 +49,7 @@ function parseArgs(argv) {
     else if (arg === "--file-alt-text" || arg === "--alt-text") args.attachmentAltTexts.push(next());
     else if (arg === "--snippet-type") args.attachmentSnippetTypes.push(next());
     else if (arg === "--send") args.send = true;
+    else if (arg === "--dry-run") args.send = false;
     else if (arg === "--no-unfurl-links") args.unfurlLinks = false;
     else if (arg === "--no-unfurl-media") args.unfurlMedia = false;
     else if (arg === "--help" || arg === "-h") {
@@ -71,7 +72,7 @@ function printHelp() {
   console.log(`
 Usage:
   slack-api send --channel '#general' --message 'hello'
-  slack-api send --channel C123456 --message-file /tmp/message.txt --send
+  slack-api send --channel C123456 --message-file /tmp/message.txt --dry-run
 
 Options:
   --channel ID|#name    Channel id or channel name
@@ -82,7 +83,8 @@ Options:
   --file-title TEXT     Title override. Repeat in --attach order
   --file-alt-text TEXT  Alt text. Repeat in --attach order
   --snippet-type TYPE   Slack snippet type for text/code files. Repeat in --attach order
-  --send                Actually post the top-level message. Default is dry-run
+  --send                Post the top-level message. This is the default.
+  --dry-run             Preview the message without posting it.
   --no-unfurl-links     Disable link unfurls
   --no-unfurl-media     Disable media unfurls
   --workspace URL       Slack workspace URL

@@ -790,6 +790,55 @@ async function listConversations(args, options = {}) {
   );
 }
 
+async function listUserBootChannels(args, options = {}) {
+  try {
+    const { response, json, auth } = await slackApiCall(args, "client.userBoot", {
+      _x_reason: "initial-data",
+      _x_mode: "online",
+      min_channel_updated: 0,
+      include_min_version_bump_check: 1,
+    });
+
+    const page = {
+      ok: json.ok,
+      status: response.status,
+      error: json.error || null,
+      itemCount: 0,
+      cursor: "",
+      nextCursor: "",
+      authSource: auth.source,
+    };
+
+    if (!json.ok) {
+      return {
+        ok: false,
+        error: json.error,
+        items: [],
+        pages: [page],
+        authSource: auth.source,
+      };
+    }
+
+    const channels = Array.isArray(json.channels) ? json.channels : [];
+    page.itemCount = channels.length;
+    return {
+      ok: true,
+      error: null,
+      items: channels,
+      pages: [page],
+      authSource: auth.source,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: String(error?.message || error),
+      items: [],
+      pages: [],
+      authSource: null,
+    };
+  }
+}
+
 async function resolveChannel(args, value, options = {}) {
   const raw = String(value || "").trim();
   if (!raw) throw new Error("--channel is required");
@@ -799,11 +848,49 @@ async function resolveChannel(args, value, options = {}) {
       channel: raw,
       include_num_members: true,
     });
+
+    if (json.ok) {
+      return {
+        ok: true,
+        error: null,
+        channelId: raw,
+        channel: summarizeChannel(json.channel),
+        responseStatus: response.status,
+        authSource: auth.source,
+        candidates: [],
+      };
+    }
+
+    if (json.error === "enterprise_is_restricted") {
+      const userBoot = await listUserBootChannels(args, options);
+      const exact = userBoot.items.find((channel) => channel.id === raw);
+      if (exact) {
+        return {
+          ok: true,
+          error: null,
+          channelId: exact.id,
+          channel: summarizeChannel(exact),
+          candidates: [],
+          authSource: userBoot.authSource,
+          userBootFallback: true,
+        };
+      }
+      return {
+        ok: false,
+        error: "channel_not_found",
+        channelId: raw,
+        channel: null,
+        candidates: [],
+        authSource: userBoot.authSource,
+        userBootFallback: true,
+      };
+    }
+
     return {
-      ok: json.ok,
+      ok: false,
       error: json.error,
       channelId: raw,
-      channel: json.channel ? summarizeChannel(json.channel) : null,
+      channel: null,
       responseStatus: response.status,
       authSource: auth.source,
       candidates: [],
@@ -818,18 +905,18 @@ async function resolveChannel(args, value, options = {}) {
     .slice(0, options.candidateLimit || 10)
     .map(summarizeChannel);
 
-  if (!listed.ok) {
+  if (listed.ok && exact) {
     return {
-      ok: false,
-      error: listed.error,
-      channelId: null,
-      channel: null,
+      ok: true,
+      error: null,
+      channelId: exact.id,
+      channel: summarizeChannel(exact),
       candidates,
       listPages: listed.pages,
     };
   }
 
-  if (!exact) {
+  if (listed.ok && !exact) {
     return {
       ok: false,
       error: "channel_not_found",
@@ -840,11 +927,54 @@ async function resolveChannel(args, value, options = {}) {
     };
   }
 
+  if (listed.error === "enterprise_is_restricted") {
+    const userBoot = await listUserBootChannels(args, options);
+    if (!userBoot.ok) {
+      return {
+        ok: false,
+        error: userBoot.error,
+        channelId: null,
+        channel: null,
+        candidates: [],
+        listPages: listed.pages,
+        userBootPages: userBoot.pages,
+      };
+    }
+
+    const userBootExact = userBoot.items.find((channel) => normalizeChannelName(channel.name || channel.name_normalized) === normalized);
+    const userBootCandidates = userBoot.items
+      .filter((channel) => normalizeChannelName(channel.name || channel.name_normalized).includes(normalized))
+      .slice(0, options.candidateLimit || 10)
+      .map(summarizeChannel);
+
+    if (userBootExact) {
+      return {
+        ok: true,
+        error: null,
+        channelId: userBootExact.id,
+        channel: summarizeChannel(userBootExact),
+        candidates: userBootCandidates,
+        listPages: listed.pages,
+        userBootPages: userBoot.pages,
+      };
+    }
+
+    return {
+      ok: false,
+      error: "channel_not_found",
+      channelId: null,
+      channel: null,
+      candidates: userBootCandidates,
+      listPages: listed.pages,
+      userBootPages: userBoot.pages,
+    };
+  }
+
   return {
-    ok: true,
-    error: null,
-    channelId: exact.id,
-    channel: summarizeChannel(exact),
+    ok: false,
+    error: listed.error,
+    channelId: null,
+    channel: null,
     candidates,
     listPages: listed.pages,
   };

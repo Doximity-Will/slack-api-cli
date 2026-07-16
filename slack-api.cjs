@@ -50,7 +50,7 @@ const COMMANDS = {
   },
   send: {
     script: "slack-api-send.cjs",
-    summary: "Dry-run or post a top-level Slack message.",
+    summary: "Post a top-level Slack message.",
     aliases: ["post"],
   },
   draft: {

@@ -56,4 +56,4 @@ slack-api read --link 'https://example.slack.com/archives/C0123456789/p177878464
 
 Message text is redacted by default. Add `--include-text` or `--include-snippets` only when the user asked for message content.
 
-Mutating commands are dry-run by default. Do not add flags such as `--send`, `--add`, `--remove`, `--create`, or `--delete` unless the user explicitly asked you to mutate Slack.
+The `send` command posts by default. Use `--dry-run` to preview a message instead of sending it. Other mutating commands are dry-run by default and require explicit flags such as `--add`, `--remove`, `--create`, or `--delete`.

@@ -66,11 +66,11 @@ slack-api user profile --email someone@example.com
 
 ## Messages
 
-Validate or post a message:
+Post a message:
 
 ```sh
 slack-api send --channel '#general' --message 'Thanks'
-slack-api send --channel '#general' --message 'Thanks' --send
+slack-api send --channel '#general' --message 'Thanks' --dry-run
 ```
 
 Validate or post a thread reply:

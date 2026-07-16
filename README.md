@@ -65,7 +65,7 @@ slack-api read --link 'https://example.slack.com/archives/C0123456789/p177878464
 
 Search and read commands redact message text by default. Add `--include-snippets` or `--include-text` only when you intentionally want message text in terminal output or saved JSON.
 
-Mutating commands are dry-run by default. Commands such as `send`, `reply`, `react`, and `draft` validate what would happen, then require an explicit flag such as `--send`, `--add`, `--remove`, `--create`, or `--delete`.
+The `send` command posts by default; use `--dry-run` to preview instead. Other mutating commands are dry-run by default. Commands such as `reply`, `react`, and `draft` validate what would happen, then require an explicit flag such as `--add`, `--remove`, `--create`, or `--delete`.
 
 ## More Docs
 
