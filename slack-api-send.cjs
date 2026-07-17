@@ -148,7 +148,7 @@ async function main() {
         warning: blocksIgnored
           ? "Slack ignores blocks on file posts when initial_comment/message text is provided."
           : null,
-        hint: "Rerun with --send to upload and share these file attachment(s).",
+        hint: "Rerun without --dry-run to upload and share these file attachment(s)."
       }, null, 2));
       return;
     }
@@ -188,7 +188,7 @@ async function main() {
       action: "chat.postMessage",
       channel: resolved.channel,
       payload,
-      hint: "Rerun with --send to post this top-level message.",
+      hint: "Rerun without --dry-run to post this top-level message.",
     }, null, 2));
     return;
   }
