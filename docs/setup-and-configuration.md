@@ -74,3 +74,17 @@ Do not commit or publish:
 - local `.env` files
 
 The project `.gitignore` excludes the repo-local paths used during development, but setup stores new user data outside the repository by default.
+
+## Enterprise Grid Workspaces
+
+On Enterprise Grid workspaces, Slack restricts some Web API endpoints (`conversations.list`, `conversations.members`, `conversations.open`) for browser session tokens. This fork falls back to the undocumented `client.userBoot` endpoint (the same one the Slack web client uses) to discover channels, resolve DMs, and read channel metadata.
+
+What works:
+
+- `send`, `reply`, `react`, `channel info`, `channel history`, `channel search`
+- `dm history`, `dm info`
+- `search`, `read`, `file search`, `emoji list`, `whoami`, `auth`
+
+What is still limited:
+
+- `channel members` cannot list all members on Enterprise Grid because `client.userBoot` does not expose full member lists. It will return `enterprise_is_restricted` with a note.
