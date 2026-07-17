@@ -4,6 +4,7 @@ const {
   buildTimeWindow,
   isTimestampInWindow,
   loadAuth,
+  openDmChannel,
   parseCommonArgs,
   parsePositiveInt,
   resolveUser,
@@ -144,20 +145,19 @@ async function resolveDm(args) {
     };
   }
 
-  const { response, json, auth } = await slackApiCall(args, "conversations.open", {
-    users: resolved.userId,
-    return_im: true,
+  const dm = await openDmChannel(args, resolved.userId, {
+    maxPages: args.maxPages,
   });
 
   return {
-    ok: json.ok,
-    status: response.status,
-    error: json.error,
-    authSource: auth.source,
+    ok: dm.ok,
+    error: dm.error,
+    authSource: dm.authSource,
     userId: resolved.userId,
     user: resolved.user,
-    channelId: json.channel?.id || null,
-    channel: json.channel ? summarizeChannel(json.channel) : null,
+    channelId: dm.channelId,
+    channel: dm.channel,
+    userBootFallback: dm.userBootFallback || false,
   };
 }
 

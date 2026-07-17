@@ -3,6 +3,7 @@
 const {
   DEFAULT_CONVERSATION_TYPES,
   buildTimeWindow,
+  getChannelMembers,
   isTimestampInWindow,
   listConversations,
   loadAuth,
@@ -232,13 +233,10 @@ async function runMembers(args) {
     };
   }
 
-  const { response, json, auth } = await slackApiCall(args, "conversations.members", {
-    channel: resolved.channelId,
-    limit: args.limit,
-  });
-  const memberIds = json.members || [];
+  const membersResult = await getChannelMembers(args, resolved.channelId, { limit: args.limit });
+  const memberIds = membersResult.members;
   let users = [];
-  if (json.ok && args.resolveUsers) {
+  if (membersResult.ok && args.resolveUsers) {
     users = await Promise.all(memberIds.map(async (userId) => {
       const { json: userJson } = await slackApiCall(args, "users.info", { user: userId });
       return userJson.ok ? summarizeUser(userJson.user) : { id: userId, error: userJson.error };
@@ -246,17 +244,17 @@ async function runMembers(args) {
   }
 
   return {
-    ok: json.ok,
-    status: response.status,
-    error: json.error,
+    ok: membersResult.ok,
+    error: membersResult.error,
     channelId: resolved.channelId,
     channel: resolved.channel,
-    authSource: auth.source,
-    hasMore: Boolean(json.response_metadata?.next_cursor),
-    responseMetadata: json.response_metadata || null,
+    authSource: membersResult.authSource,
+    hasMore: membersResult.hasMore,
+    responseMetadata: membersResult.responseMetadata || null,
     memberCount: memberIds.length,
     members: memberIds,
     users: args.resolveUsers ? users : undefined,
+    note: membersResult.note || undefined,
   };
 }
 
